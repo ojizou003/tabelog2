@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 import time
-from urllib.parse import quote
 import logging # logging モジュールを追加
 
 # ロギングの設定 (必要に応じて調整)
@@ -25,7 +24,10 @@ def build_search_url(prefecture_roman: str, genre_roman: str, page_num: int) -> 
     Returns:
         構築されたURL
     """
-    url = f"{BASE_URL}{prefecture_roman}/rstLst/{genre_roman}/{page_num}/"
+    if genre_roman:
+        url = f"{BASE_URL}{prefecture_roman}/rstLst/{genre_roman}/{page_num}/"
+    else:
+        url = f"{BASE_URL}{prefecture_roman}/rstLst/{page_num}/"
     return url
 
 def get_page_content(url: str) -> BeautifulSoup | None:
@@ -141,9 +143,6 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
         logging.warning(f"Unknown prefecture: {prefecture_jp}")
         return
 
-    if not genre_roman:
-        logging.warning(f"Unknown genre: {genre_jp}")
-        return
 
     for page_num in range(1, min(max_pages, 60) + 1):
         search_url = build_search_url(prefecture_roman, genre_roman, page_num)

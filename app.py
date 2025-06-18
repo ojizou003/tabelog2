@@ -20,9 +20,6 @@ def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
     if not prefecture_roman:
         status_placeholder.error(f"選択された都道府県 '{prefecture_jp}' のローマ字変換に失敗しました。")
         progress_bar.empty() # プログレスバーを非表示にする
-    elif not genre_roman:
-        status_placeholder.error(f"選択されたジャンル '{genre_jp}' のローマ字変換に失敗しました。")
-        progress_bar.empty() # プログレスバーを非表示にする
     else:
         scraped_data = []
         try:
@@ -35,7 +32,10 @@ def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
                 # より正確な進捗表示には、スクレイパー側で総店舗数を予測するか、ページ数を基に進捗を計算する必要がある
                 progress_percentage = min((i + 1) / (max_pages * 20), 1.0) # 例: 最大ページ数、1ページあたり最大20店舗と仮定
                 progress_bar.progress(progress_percentage)
-                status_placeholder.info(f"'{prefecture_jp}' の '{genre_jp}' を検索中... ({i + 1} 件取得)")
+                if genre_jp:
+                    status_placeholder.info(f"'{prefecture_jp}' の '{genre_jp}' を検索中... ({i + 1} 件取得)")
+                else:
+                    status_placeholder.info(f"'{prefecture_jp}' の '全ジャンル' を検索中... ({i + 1} 件取得)")
 
 
             # 処理完了の表示
@@ -47,6 +47,8 @@ def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
                 # 2.3 データ表示機能 & 5.2 出力項目 - データ表示
                 df = pd.DataFrame(scraped_data)
                 st.write(f"検索結果: {len(df)} 件")
+                # インデックスを1から開始するように変更
+                df.index = range(1, len(df) + 1)
                 st.dataframe(df)
 
                 # 2.4 データ出力機能 & 5.2 出力項目 - ダウンロード機能
@@ -65,22 +67,25 @@ def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
             progress_bar.empty() # プログレスバーを非表示にする
 
 st.title('営業リスト作成ツール')
+st.subheader('電話番号、住所、URLなど')
 st.write('都道府県とジャンルを選択して、**食べログ**から店舗情報を収集します。')
 
 # 5.1 入力項目
 prefecture_jp = st.sidebar.selectbox(
     '都道府県を選択してください:',
-    list(PREFECTURE_MAP.keys()) # utils.py の都道府県マップを使用
+    [''] + list(PREFECTURE_MAP.keys()), # utils.py の都道府県マップを使用
+    index=0
 )
 
 genre_jp = st.sidebar.selectbox(
     'ジャンルを選択してください:',
-    list(GENRE_MAP.keys()) # utils.py のジャンルマップを使用
+    [''] + list(GENRE_MAP.keys()), # utils.py のジャンルマップを使用
+    index=0
 )
 
 # 最大ページ数入力
 max_pages = st.sidebar.number_input(
-    '最大ページ数:',
+    '最大ページ数(1~60):',
     min_value=1,
     max_value=60,
     value=1, # デフォルト値
@@ -93,4 +98,7 @@ st.sidebar.caption('食べログに情報がない項目は空欄になります
 
 # 検索実行ボタン
 if st.button('検索実行'):
-    run_search(prefecture_jp, genre_jp, max_pages)
+    if not prefecture_jp:
+        st.sidebar.error('都道府県を選択してください。')
+    else:
+        run_search(prefecture_jp, genre_jp, max_pages)
