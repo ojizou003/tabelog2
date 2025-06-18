@@ -53,7 +53,7 @@ def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
 
                 # 2.4 データ出力機能 & 5.2 出力項目 - ダウンロード機能
                 # CSVダウンロードボタン
-                csv_filename = f"tabelog_{prefecture_roman}_{genre_roman}_{pd.Timestamp('now').strftime('%Y%m%d_%H%M%S')}.csv"
+                csv_filename = f"tabelog_{prefecture_roman}_{genre_roman}_{pd.Timestamp('now').tz_localize('UTC').tz_convert('Asia/Tokyo').strftime('%Y%m%d_%H%M%S')}.csv"
                 st.download_button(
                     label="CSVファイルをダウンロード",
                     data=df.to_csv(index=False).encode('utf-8'),
@@ -68,7 +68,7 @@ def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
 
 st.title('営業リスト作成ツール')
 st.subheader('電話番号、住所、URLなど')
-st.write('都道府県とジャンルを選択して、**食べログ**から店舗情報を収集します。')
+st.write('サイドバーで都道府県とジャンルを選択してください。')
 
 # 5.1 入力項目
 prefecture_jp = st.sidebar.selectbox(
