@@ -97,7 +97,7 @@ st.sidebar.caption('収集する項目は、店名、ジャンル、住所、電
 st.sidebar.caption('食べログに情報がない項目は空欄になります。')
 
 # 検索実行ボタン
-if st.button('検索実行'):
+if st.sidebar.button('検索実行'):
     if not prefecture_jp:
         st.sidebar.error('都道府県を選択してください。')
     else:
