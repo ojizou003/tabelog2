@@ -66,7 +66,7 @@ def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
             status_placeholder.error(f"スクレイピング中にエラーが発生しました: {e}")
             progress_bar.empty() # プログレスバーを非表示にする
 
-st.title('営業リスト作成ツール')
+st.title('飲食店営業リスト作成ツール')
 st.subheader('電話番号、住所、URLなど')
 st.write('サイドバーで都道府県とジャンルを選択してください。')
 
