@@ -79,10 +79,10 @@ keyword = st.text_input(
 
 # 最大ページ数入力
 max_pages = st.number_input(
-    '最大ページ数:',
+    '最大ページ数:(1ページ当たり20件の店舗情報が取得できます)',
     min_value=1,
     max_value=60,
-    value=10, # デフォルト値
+    value=1, # デフォルト値
     step=1
 )
 

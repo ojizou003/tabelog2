@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import time
-from urllib.parse import quote
+# from urllib.parse import quote
 import logging # logging モジュールを追加
 
 # ロギングの設定 (必要に応じて調整)
@@ -25,8 +25,9 @@ def build_search_url(prefecture_roman: str, keyword: str, page_num: int) -> str:
     Returns:
         構築されたURL
     """
-    encoded_keyword = quote(keyword)
-    url = f"{BASE_URL}{prefecture_roman}/rstLst/{page_num}/?sk={encoded_keyword}"
+    # encoded_keyword = quote(keyword)
+    # url = f"{BASE_URL}{prefecture_roman}/rstLst/{page_num}/?sk={encoded_keyword}"
+    url = f"{BASE_URL}{prefecture_roman}/rstLst/{page_num}/?sk={keyword}"
     return url
 
 def get_page_content(url: str) -> BeautifulSoup | None:
