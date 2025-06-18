@@ -72,7 +72,7 @@ st.write('都道府県とジャンルを選択して、**食べログ**から店
 
 # 5.1 入力項目
 prefecture_jp = st.sidebar.selectbox(
-    '都道府県を選択してください:',
+    '都道府県を選択してください(必須):',
     [''] + list(PREFECTURE_MAP.keys()), # utils.py の都道府県マップを使用
     index=0
 )
