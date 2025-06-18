@@ -64,28 +64,32 @@ def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
             status_placeholder.error(f"スクレイピング中にエラーが発生しました: {e}")
             progress_bar.empty() # プログレスバーを非表示にする
 
-st.title('食べログ営業リスト作成ツール')
-st.write('都道府県とジャンルを選択して、食べログから店舗情報を収集します。')
+st.title('営業リスト作成ツール')
+st.write('都道府県とジャンルを選択して、**食べログ**から店舗情報を収集します。')
 
 # 5.1 入力項目
-prefecture_jp = st.selectbox(
+prefecture_jp = st.sidebar.selectbox(
     '都道府県を選択してください:',
     list(PREFECTURE_MAP.keys()) # utils.py の都道府県マップを使用
 )
 
-genre_jp = st.selectbox(
+genre_jp = st.sidebar.selectbox(
     'ジャンルを選択してください:',
     list(GENRE_MAP.keys()) # utils.py のジャンルマップを使用
 )
 
 # 最大ページ数入力
-max_pages = st.number_input(
-    '最大ページ数:(1ページ当たり20件の店舗情報が取得できます)',
+max_pages = st.sidebar.number_input(
+    '最大ページ数:',
     min_value=1,
     max_value=60,
     value=1, # デフォルト値
     step=1
 )
+
+st.sidebar.caption('1ページ当たり20件の店舗情報が取得できます。時間がかかるので1ページからお試しください。')
+st.sidebar.caption('収集する項目は、店名、ジャンル、住所、電話番号、予約・お問い合わせ先、ホームページURL、席数です。')
+st.sidebar.caption('食べログに情報がない項目は空欄になります。')
 
 # 検索実行ボタン
 if st.button('検索実行'):
