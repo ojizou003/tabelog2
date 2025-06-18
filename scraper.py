@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import time
-# from urllib.parse import quote
+from urllib.parse import quote
 import logging # logging モジュールを追加
 
 # ロギングの設定 (必要に応じて調整)
@@ -9,25 +9,23 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # utils.py から都道府県変換マップをインポートする想定
 # from .utils import PREFECTURE_MAP # プロジェクト構成による
-from utils import convert_prefecture_to_roman
+from utils import convert_prefecture_to_roman, convert_genre_to_roman
 
 BASE_URL = "https://tabelog.com/"
 
-def build_search_url(prefecture_roman: str, keyword: str, page_num: int) -> str:
+def build_search_url(prefecture_roman: str, genre_roman: str, page_num: int) -> str:
     """
-    食べログの検索リストページのURLを構築する
+    食べログのジャンル別リストページのURLを構築する
 
     Args:
         prefecture_roman: 都道府県のローマ字表記
-        keyword: 検索キーワード
+        genre_roman: ジャンルのローマ字表記
         page_num: ページ番号 (1-60)
 
     Returns:
         構築されたURL
     """
-    # encoded_keyword = quote(keyword)
-    # url = f"{BASE_URL}{prefecture_roman}/rstLst/{page_num}/?sk={encoded_keyword}"
-    url = f"{BASE_URL}{prefecture_roman}/rstLst/{page_num}/?sk={keyword}"
+    url = f"{BASE_URL}{prefecture_roman}/rstLst/{genre_roman}/{page_num}/"
     return url
 
 def get_page_content(url: str) -> BeautifulSoup | None:
@@ -123,47 +121,50 @@ def extract_store_details(soup: BeautifulSoup) -> dict:
             
     return details
 
-def scrape_tabelog(prefecture_jp: str, keyword: str, max_pages: int = 60):
+def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
     """
     食べログから店舗情報をスクレイピングするジェネレーター関数
     スクレイピングした店舗データをyieldします。
 
     Args:
         prefecture_jp: 都道府県の漢字表記
-        keyword: 検索キーワード
+        genre_jp: ジャンルの漢字表記
         max_pages: 最大取得ページ数 (1-60)
 
-    Returns:
-        収集した店舗情報のリスト
+    Yields:
+        dict: 収集した店舗情報の辞書
     """
-    # utils モジュールから変換関数を使用する
     prefecture_roman = convert_prefecture_to_roman(prefecture_jp)
-    # prefecture_roman = "dummy_roman" # Placeholder
+    genre_roman = convert_genre_to_roman(genre_jp)
 
     if not prefecture_roman:
-        logging.warning(f"Unknown prefecture: {prefecture_jp}") # print から logging.warning に変更
-        return []
+        logging.warning(f"Unknown prefecture: {prefecture_jp}")
+        return
+
+    if not genre_roman:
+        logging.warning(f"Unknown genre: {genre_jp}")
+        return
 
     for page_num in range(1, min(max_pages, 60) + 1):
-        search_url = build_search_url(prefecture_roman, keyword, page_num)
+        search_url = build_search_url(prefecture_roman, genre_roman, page_num)
         logging.info(f"Scraping page {page_num}: {search_url}")
 
         list_soup = get_page_content(search_url)
         if not list_soup:
-            logging.warning(f"Failed to get content for page {page_num}. Skipping.") # print から logging.warning に変更
+            logging.warning(f"Failed to get content for page {page_num}. Skipping.")
             continue
 
         store_urls = extract_store_urls(list_soup)
         if not store_urls:
-            logging.info(f"No store URLs found on page {page_num}.") # print から logging.info に変更
+            logging.info(f"No store URLs found on page {page_num}.")
             # ページが存在しない場合の対応 (例: 検索結果の最終ページ)
             if page_num > 1: # 2ページ目以降でURLが見つからない場合は終了と判断
-                 logging.info("Assuming end of search results.") # print から logging.info に変更
+                 logging.info("Assuming end of search results.")
                  break
             continue
 
         for store_url in store_urls:
-            logging.info(f"  Scraping store page: {store_url}") # print から logging.info に変更
+            logging.info(f"  Scraping store page: {store_url}")
             store_soup = get_page_content(store_url)
             if store_soup:
                 store_details = extract_store_details(store_soup)
@@ -176,8 +177,9 @@ def scrape_tabelog(prefecture_jp: str, keyword: str, max_pages: int = 60):
 if __name__ == '__main__':
     # テスト実行用のコードなど
     # 例:
-    # data = scrape_tabelog("東京都", "ラーメン", max_pages=1)
+    # data_generator = scrape_tabelog("東京都", "ラーメン", max_pages=1)
     # import pandas as pd
-    # df = pd.DataFrame(data)
+    # data_list = list(data_generator) # ジェネレーターからリストに変換
+    # df = pd.DataFrame(data_list)
     # print(df)
     pass

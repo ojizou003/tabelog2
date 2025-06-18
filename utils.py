@@ -60,3 +60,59 @@ def convert_prefecture_to_roman(prefecture_jp: str) -> str:
         都道府県のローマ字表記
     """
     return PREFECTURE_MAP.get(prefecture_jp, '')
+
+# ジャンル変換テーブル
+GENRE_MAP = {
+    '和食': 'washoku',
+    '日本料理': 'japanese',
+    '寿司': 'sushi',
+    '海鮮・魚介': 'seafood',
+    '蕎麦': 'soba',
+    'うなぎ': 'unagi',
+    '焼き鳥': 'yakitori',
+    'お好み焼き': 'okkonomiyaki',
+    'もんじゃ焼き': 'monjya',
+    '洋食': 'yoshoku',
+    'フレンチ': 'french',
+    'イタリアン': 'italian',
+    'スペイン料理': 'spain',
+    'ステーキ': 'steak',
+    '中華料理': 'chinese',
+    '韓国料理': 'korea',
+    'タイ料理': 'thai',
+    'ラーメン': 'ramen',
+    'カレー': 'curry',
+    '鍋': 'nabe',
+    'もつ鍋': 'motsu',
+    '居酒屋': 'izakaya',
+    'パン': 'pan',
+    'スイーツ': 'sweets',
+    'バー・お酒': 'bar',
+    '天ぷら': 'tempura',
+    '焼肉': 'yakiniku',
+    '料理旅館': 'ryokan',
+    'ビストロ': 'bistro',
+    'ハンバーグ': 'hamburgersteak',
+    'とんかつ': 'tonkatsu',
+    '串揚げ': 'kushiage',
+    'うどん': 'udon',
+    'しゃぶしゃぶ': 'syabusyabu',
+    '沖縄料理': 'okinawafood',
+    'ハンバーガー': 'hamburger',
+    'パスタ': 'pasta',
+    'ピザ': 'pizza',
+    '餃子': 'gyouza',
+    'ホルモン': 'horumon',
+    'カフェ': 'cafe',
+    '喫茶店': 'kissaten',
+    'ケーキ': 'cake',
+    'タピオカ': 'tapioca',
+    '食堂': 'teishoku',
+    'ビュッフェ・バイキング': 'viking',
+}
+
+def convert_genre_to_roman(genre_jp: str) -> str:
+    """
+    ジャンルの漢字表記をローマ字表記に変換する
+    """
+    return GENRE_MAP.get(genre_jp, '')
