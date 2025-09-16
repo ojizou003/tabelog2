@@ -85,9 +85,9 @@ genre_jp = st.sidebar.selectbox(
 
 # 最大ページ数入力
 max_pages = st.sidebar.number_input(
-    '最大ページ数(1~40):',
+    '最大ページ数(1~60):',
     min_value=1,
-    max_value=40,
+    max_value=60,
     value=1, # デフォルト値
     step=1
 )
