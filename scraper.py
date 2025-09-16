@@ -19,7 +19,7 @@ def build_search_url(prefecture_roman: str, genre_roman: str, page_num: int) -> 
     Args:
         prefecture_roman: 都道府県のローマ字表記
         genre_roman: ジャンルのローマ字表記
-        page_num: ページ番号 (1-60)
+        page_num: ページ番号 (1-40)
 
     Returns:
         構築されたURL
@@ -123,7 +123,7 @@ def extract_store_details(soup: BeautifulSoup) -> dict:
             
     return details
 
-def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
+def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 40):
     """
     食べログから店舗情報をスクレイピングするジェネレーター関数
     スクレイピングした店舗データをyieldします。
@@ -131,7 +131,7 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
     Args:
         prefecture_jp: 都道府県の漢字表記
         genre_jp: ジャンルの漢字表記
-        max_pages: 最大取得ページ数 (1-60)
+        max_pages: 最大取得ページ数 (1-40)
 
     Yields:
         dict: 収集した店舗情報の辞書
@@ -144,7 +144,7 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
         return
 
 
-    for page_num in range(1, min(max_pages, 60) + 1):
+    for page_num in range(1, min(max_pages, 40) + 1):
         search_url = build_search_url(prefecture_roman, genre_roman, page_num)
         logging.info(f"Scraping page {page_num}: {search_url}")
 
