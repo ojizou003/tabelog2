@@ -142,11 +142,12 @@ if st.session_state['phase'] == 'phase1_done':
 
     resume_clicked = st.button('再開（残りのページを取得）')
     if resume_clicked:
-        # メモリ解放
+        # メモリ解放（部分結果を破棄）
         try:
             del df_partial
         except Exception:
             pass
+        st.session_state['partial_data'] = None
         gc.collect()
 
         try:
@@ -166,10 +167,12 @@ if st.session_state['phase'] == 'phase1_done':
             status_placeholder.success('残りのページの取得が完了しました。')
             progress_bar.empty()
 
-            # 結合
-            full = (st.session_state.get('partial_data') or []) + data_phase2
-            df_full = pd.DataFrame(full)
-            render_table_and_download(df_full, f"full_{end_p}pages")
+            # 残り分のみをダウンロード・表示（全件結合はしない）
+            if data_phase2:
+                df_rest = pd.DataFrame(data_phase2)
+                render_table_and_download(df_rest, f"rest_{start_p}-{end_p}pages")
+            else:
+                st.warning('残りのページでは店舗情報が見つかりませんでした。')
 
             st.session_state['phase'] = 'done'
         except Exception as e:
