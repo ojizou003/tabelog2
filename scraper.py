@@ -173,6 +173,59 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
 
     # ジェネレーターなので return は不要
 
+def scrape_tabelog_range(prefecture_jp: str, genre_jp: str, start_page: int, end_page: int):
+    """
+    食べログから店舗情報をスクレイピングするジェネレーター関数（ページ範囲指定）
+
+    Args:
+        prefecture_jp: 都道府県の漢字表記
+        genre_jp: ジャンルの漢字表記
+        start_page: 開始ページ（1以上）
+        end_page: 終了ページ（開始以上、最大60）
+
+    Yields:
+        dict: 収集した店舗情報の辞書
+    """
+    prefecture_roman = convert_prefecture_to_roman(prefecture_jp)
+    genre_roman = convert_genre_to_roman(genre_jp)
+
+    if not prefecture_roman:
+        logging.warning(f"Unknown prefecture: {prefecture_jp}")
+        return
+
+    start = max(1, int(start_page))
+    end = min(60, int(end_page))
+    if end < start:
+        logging.warning(f"Invalid page range: {start_page}..{end_page}")
+        return
+
+    for page_num in range(start, end + 1):
+        search_url = build_search_url(prefecture_roman, genre_roman, page_num)
+        logging.info(f"Scraping page {page_num}: {search_url}")
+
+        list_soup = get_page_content(search_url)
+        if not list_soup:
+            logging.warning(f"Failed to get content for page {page_num}. Skipping.")
+            continue
+
+        store_urls = extract_store_urls(list_soup)
+        if not store_urls:
+            logging.info(f"No store URLs found on page {page_num}.")
+            # ページが存在しない場合の対応 (例: 検索結果の最終ページ)
+            if page_num > start:
+                logging.info("Assuming end of search results.")
+                break
+            continue
+
+        for store_url in store_urls:
+            logging.info(f"  Scraping store page: {store_url}")
+            store_soup = get_page_content(store_url)
+            if store_soup:
+                store_details = extract_store_details(store_soup)
+                yield store_details
+            else:
+                logging.error(f"店舗ページの取得に失敗しました: {store_url}")
+
 if __name__ == '__main__':
     # テスト実行用のコードなど
     # 例:

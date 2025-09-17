@@ -1,94 +1,93 @@
-import streamlit as st
+import gc
 import pandas as pd
+import streamlit as st
 from utils import PREFECTURE_MAP, convert_prefecture_to_roman, GENRE_MAP, convert_genre_to_roman
-from scraper import scrape_tabelog # scraper.py から scrape_tabelog 関数をインポート
+from scraper import scrape_tabelog_range
 
-def run_search(prefecture_jp: str, genre_jp: str, max_pages: int):
-    """
-    検索実行ボタンが押されたときの処理
-    """
-    # 処理状況表示用のプレースホルダーを作成
-    status_placeholder = st.empty()
-    progress_bar = st.progress(0)
+PHASE_LIMIT = 30
+DISPLAY_LIMIT = 1000  # 表示負荷軽減のための最大表示行数
 
-    status_placeholder.info(f"'{prefecture_jp}' の '{genre_jp}' を検索中...")
 
-    # 内部処理用にローマ字に変換
-    prefecture_roman = convert_prefecture_to_roman(prefecture_jp)
-    genre_roman = convert_genre_to_roman(genre_jp)
+def init_session():
+    st.session_state.setdefault('phase', 'idle')  # idle | phase1_done | done
+    st.session_state.setdefault('prefecture_jp', '')
+    st.session_state.setdefault('genre_jp', '')
+    st.session_state.setdefault('requested_pages', 1)
+    st.session_state.setdefault('partial_data', None)  # list[dict] or None
+    st.session_state.setdefault('next_start_page', None)
+    st.session_state.setdefault('end_page', None)
+    st.session_state.setdefault('error', None)
 
-    if not prefecture_roman:
-        status_placeholder.error(f"選択された都道府県 '{prefecture_jp}' のローマ字変換に失敗しました。")
-        progress_bar.empty() # プログレスバーを非表示にする
+
+def collect_range(prefecture_jp: str, genre_jp: str, start_page: int, end_page: int, status_placeholder, progress_bar):
+    data = []
+    # 進捗は概算（ページ数×20件想定）
+    estimated_total_items = max(1, (end_page - start_page + 1) * 20)
+    for i, store_details in enumerate(scrape_tabelog_range(prefecture_jp, genre_jp, start_page, end_page)):
+        data.append(store_details)
+        progress = min((i + 1) / estimated_total_items, 1.0)
+        progress_bar.progress(progress)
+        if genre_jp:
+            status_placeholder.info(f"'{prefecture_jp}' の '{genre_jp}' を検索中... ({i + 1} 件取得)")
+        else:
+            status_placeholder.info(f"'{prefecture_jp}' の '全ジャンル' を検索中... ({i + 1} 件取得)")
+    return data
+
+
+def render_table_and_download(df: pd.DataFrame, label_prefix: str):
+    st.write(f"検索結果: {len(df)} 件")
+    df.index = range(1, len(df) + 1)
+    if len(df) > DISPLAY_LIMIT:
+        st.caption(f"表示は先頭 {DISPLAY_LIMIT} 行まで。全件はCSVでダウンロードできます。")
+        st.dataframe(df.head(DISPLAY_LIMIT))
     else:
-        scraped_data = []
-        try:
-            # スクレイピング実行 (ジェネレーターとして呼び出す)
-            for i, store_details in enumerate(scrape_tabelog(prefecture_jp, genre_jp, max_pages=max_pages)):
-                scraped_data.append(store_details)
-                # 進捗表示を更新 (ここでは取得した店舗数で簡易的に表示)
-                # 最大ページ数 * ページあたりの店舗数 (概算) で全体の進捗を計算することも可能だが、
-                # ページあたりの店舗数は変動するため、ここでは取得できた店舗数で表示する
-                # より正確な進捗表示には、スクレイパー側で総店舗数を予測するか、ページ数を基に進捗を計算する必要がある
-                progress_percentage = min((i + 1) / (max_pages * 20), 1.0) # 例: 最大ページ数、1ページあたり最大20店舗と仮定
-                progress_bar.progress(progress_percentage)
-                if genre_jp:
-                    status_placeholder.info(f"'{prefecture_jp}' の '{genre_jp}' を検索中... ({i + 1} 件取得)")
-                else:
-                    status_placeholder.info(f"'{prefecture_jp}' の '全ジャンル' を検索中... ({i + 1} 件取得)")
+        st.dataframe(df)
+    csv_bytes = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label=f"CSVファイルをダウンロード（{label_prefix}）",
+        data=csv_bytes,
+        file_name=f"tabelog_{convert_prefecture_to_roman(st.session_state['prefecture_jp'])}_{convert_genre_to_roman(st.session_state['genre_jp'])}_{label_prefix}.csv",
+        mime="text/csv",
+    )
 
 
-            # 処理完了の表示
-            status_placeholder.success('検索が完了しました。')
-            progress_bar.empty() # プログレスバーを非表示にする
+def reset_state(prefecture_jp: str, genre_jp: str, max_pages: int):
+    st.session_state.update({
+        'phase': 'idle',
+        'prefecture_jp': prefecture_jp,
+        'genre_jp': genre_jp,
+        'requested_pages': int(max_pages),
+        'partial_data': None,
+        'next_start_page': None,
+        'end_page': None,
+        'error': None,
+    })
 
 
-            if scraped_data:
-                # 2.3 データ表示機能 & 5.2 出力項目 - データ表示
-                df = pd.DataFrame(scraped_data)
-                st.write(f"検索結果: {len(df)} 件")
-                # インデックスを1から開始するように変更
-                df.index = range(1, len(df) + 1)
-                st.dataframe(df)
-
-                # 2.4 データ出力機能 & 5.2 出力項目 - ダウンロード機能
-                # CSVダウンロードボタン
-                csv_filename = f"tabelog_{prefecture_roman}_{genre_roman}_{pd.Timestamp('now').tz_localize('UTC').tz_convert('Asia/Tokyo').strftime('%Y%m%d_%H%M%S')}.csv"
-                st.download_button(
-                    label="CSVファイルをダウンロード",
-                    data=df.to_csv(index=False).encode('utf-8'),
-                    file_name=csv_filename,
-                    mime='text/csv',
-                )
-            else:
-                st.warning('指定された条件では店舗情報が見つかりませんでした。')
-        except Exception as e:
-            status_placeholder.error(f"スクレイピング中にエラーが発生しました: {e}")
-            progress_bar.empty() # プログレスバーを非表示にする
+# UI 本体
+init_session()
 
 st.title('飲食店営業リスト作成ツール')
 st.subheader('電話番号、住所、URLなど')
 st.write('サイドバーで都道府県とジャンルを選択してください。')
 
-# 5.1 入力項目
 prefecture_jp = st.sidebar.selectbox(
     '都道府県を選択してください(必須):',
-    [''] + list(PREFECTURE_MAP.keys()), # utils.py の都道府県マップを使用
+    [''] + list(PREFECTURE_MAP.keys()),
     index=0
 )
 
 genre_jp = st.sidebar.selectbox(
     'ジャンルを選択してください:',
-    [''] + list(GENRE_MAP.keys()), # utils.py のジャンルマップを使用
+    [''] + list(GENRE_MAP.keys()),
     index=0
 )
 
-# 最大ページ数入力
 max_pages = st.sidebar.number_input(
     '最大ページ数(1~60):',
     min_value=1,
     max_value=60,
-    value=1, # デフォルト値
+    value=1,
     step=1
 )
 
@@ -96,9 +95,83 @@ st.sidebar.caption('1ページ当たり20件の店舗情報が取得できます
 st.sidebar.caption('収集する項目は、店名、ジャンル、住所、電話番号、予約・お問い合わせ先、ホームページURL、席数です。')
 st.sidebar.caption('食べログに情報がない項目は空欄になります。')
 
-# 検索実行ボタン
+status_placeholder = st.empty()
+progress_bar = st.progress(0)
+
 if st.sidebar.button('検索実行'):
     if not prefecture_jp:
         st.sidebar.error('都道府県を選択してください。')
     else:
-        run_search(prefecture_jp, genre_jp, max_pages)
+        reset_state(prefecture_jp, genre_jp, max_pages)
+        total_pages = st.session_state['requested_pages']
+        try:
+            if total_pages <= PHASE_LIMIT:
+                # 単段階フロー
+                data = collect_range(prefecture_jp, genre_jp, 1, total_pages, status_placeholder, progress_bar)
+                status_placeholder.success('検索が完了しました。')
+                progress_bar.empty()
+                if data:
+                    df = pd.DataFrame(data)
+                    render_table_and_download(df, f"{total_pages}pages")
+                else:
+                    st.warning('指定された条件では店舗情報が見つかりませんでした。')
+                st.session_state['phase'] = 'done'
+            else:
+                # フェーズ1: 1..30
+                data_phase1 = collect_range(prefecture_jp, genre_jp, 1, PHASE_LIMIT, status_placeholder, progress_bar)
+                status_placeholder.success('最初の30ページの取得が完了しました。')
+                progress_bar.empty()
+
+                st.session_state['partial_data'] = data_phase1
+                st.session_state['next_start_page'] = PHASE_LIMIT + 1
+                st.session_state['end_page'] = total_pages
+                st.session_state['phase'] = 'phase1_done'
+        except Exception as e:
+            st.session_state['error'] = str(e)
+            status_placeholder.error(f"スクレイピング中にエラーが発生しました: {e}")
+            progress_bar.empty()
+
+# フェーズ間の処理
+if st.session_state['phase'] == 'phase1_done':
+    partial = st.session_state.get('partial_data') or []
+    if partial:
+        df_partial = pd.DataFrame(partial)
+        render_table_and_download(df_partial, f"partial_{PHASE_LIMIT}pages")
+    else:
+        st.info("部分データが空です。条件を見直してください。")
+
+    resume_clicked = st.button('再開（残りのページを取得）')
+    if resume_clicked:
+        # メモリ解放
+        try:
+            del df_partial
+        except Exception:
+            pass
+        gc.collect()
+
+        try:
+            status_placeholder = st.empty()
+            progress_bar = st.progress(0)
+
+            start_p = int(st.session_state['next_start_page'])
+            end_p = int(st.session_state['end_page'])
+            data_phase2 = collect_range(
+                st.session_state['prefecture_jp'],
+                st.session_state['genre_jp'],
+                start_p,
+                end_p,
+                status_placeholder,
+                progress_bar
+            )
+            status_placeholder.success('残りのページの取得が完了しました。')
+            progress_bar.empty()
+
+            # 結合
+            full = (st.session_state.get('partial_data') or []) + data_phase2
+            df_full = pd.DataFrame(full)
+            render_table_and_download(df_full, f"full_{end_p}pages")
+
+            st.session_state['phase'] = 'done'
+        except Exception as e:
+            status_placeholder.error(f"再開中にエラーが発生しました: {e}")
+            progress_bar.empty()
