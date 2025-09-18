@@ -31,12 +31,21 @@ def render_table_and_download(df: pd.DataFrame, label_prefix: str):
     else:
         st.dataframe(df)
     csv_bytes = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
+    clicked = st.download_button(
         label=f"CSVファイルをダウンロード（{label_prefix}）",
         data=csv_bytes,
         file_name=f"tabelog_{convert_prefecture_to_roman(prefecture_jp)}_{convert_genre_to_roman(genre_jp)}_{label_prefix}.csv",
         mime="text/csv",
+        key=f"download_{label_prefix}",
     )
+    if clicked:
+        # ダウンロード開始後にアプリをリセットしてタイムアウト回避
+        try:
+            for k in list(st.session_state.keys()):
+                del st.session_state[k]
+        except Exception:
+            pass
+        st.rerun()
 
 
 # UI 本体
@@ -44,23 +53,54 @@ st.title('飲食店営業リスト作成ツール')
 st.subheader('電話番号、住所、URLなど')
 st.write('サイドバーで都道府県とジャンル、ページ範囲を選択してください。')
 
+# クエリパラメータからデフォルトを復元
+pref_options = [''] + list(PREFECTURE_MAP.keys())
+genre_options = [''] + list(GENRE_MAP.keys())
+# 逆引きマップ（英字コード -> 日本語表示名）
+INV_PREF_MAP = {v: k for k, v in PREFECTURE_MAP.items()}
+INV_GENRE_MAP = {v: k for k, v in GENRE_MAP.items()}
+
+try:
+    qp = dict(st.query_params)
+except Exception:
+    qp = {}
+
+def _to_int(val, fallback):
+    try:
+        return int(val)
+    except Exception:
+        return fallback
+
+# クエリには英字コードを保存する想定。見つからなければ日本語からも復元試行。
+qp_pref_code = qp.get('prefecture', '')
+qp_genre_code = qp.get('genre', '')
+
+# 英字コード -> 日本語
+default_pref = INV_PREF_MAP.get(qp_pref_code, qp.get('prefecture', ''))
+default_genre = INV_GENRE_MAP.get(qp_genre_code, qp.get('genre', ''))
+default_start = _to_int(qp.get('start', 1), 1)
+default_end = _to_int(qp.get('end', 1), 1)
+
+pref_index = pref_options.index(default_pref) if default_pref in pref_options else 0
+genre_index = genre_options.index(default_genre) if default_genre in genre_options else 0
+
 prefecture_jp = st.sidebar.selectbox(
     '都道府県を選択してください(必須):',
-    [''] + list(PREFECTURE_MAP.keys()),
-    index=0
+    pref_options,
+    index=pref_index
 )
 
 genre_jp = st.sidebar.selectbox(
     'ジャンルを選択してください:',
-    [''] + list(GENRE_MAP.keys()),
-    index=0
+    genre_options,
+    index=genre_index
 )
 
 start_page = st.sidebar.number_input(
     '開始ページ(1~60)',
     min_value=1,
     max_value=60,
-    value=1,
+    value=default_start,
     step=1,
     format="%d"
 )
@@ -69,10 +109,30 @@ end_page = st.sidebar.number_input(
     '終了ページ(1~60)',
     min_value=1,
     max_value=60,
-    value=1,
+    value=default_end,
     step=1,
     format="%d"
 )
+
+# 現在の選択をクエリパラメータに反映（変更がある場合のみ）
+# クエリには英字コードを保存
+new_qp = {
+    'prefecture': convert_prefecture_to_roman(prefecture_jp) if prefecture_jp else '',
+    'genre': convert_genre_to_roman(genre_jp) if genre_jp else '',
+    'start': str(int(start_page)),
+    'end': str(int(end_page)),
+}
+need_update = False
+for k, v in new_qp.items():
+    if str(qp.get(k, '')) != str(v):
+        need_update = True
+        break
+if need_update:
+    try:
+        st.query_params.clear()
+        st.query_params.update(new_qp)
+    except Exception:
+        pass
 
 status_placeholder = st.empty()
 progress_bar = st.progress(0)
