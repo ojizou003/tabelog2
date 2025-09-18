@@ -155,8 +155,6 @@ end_page = st.sidebar.number_input(
     format="%d"
 )
 
-st.sidebar.caption("※データ取得前にブラウザを手動でリロードしてください。")
-
 # 現在の選択をクエリパラメータに反映（変更がある場合のみ）
 # クエリには英字コードを保存
 new_qp = {
@@ -196,6 +194,7 @@ if st.sidebar.button('データ取得'):
             if data:
                 df = pd.DataFrame(data)
                 render_table_and_download(df, f"range_{int(start_page)}-{int(end_page)}pages")
+                st.caption("※次のデータを取得する場合は、ダウンロード後、一度ブラウザを手動でリロードしてください。")
             else:
                 st.warning('指定された条件では店舗情報が見つかりませんでした。')
         except Exception as e:
