@@ -6,7 +6,7 @@ from utils import PREFECTURE_MAP, convert_prefecture_to_roman, GENRE_MAP, conver
 from scraper import scrape_tabelog_range
 
 DISPLAY_LIMIT = 1000  # 表示負荷軽減のための最大表示行数
-RELOAD_DELAY_MS = 1500  # ダウンロード後にリロードするまでの遅延（ミリ秒）
+RELOAD_DELAY_MS = 2500  # ダウンロード後にリロードするまでの遅延（ミリ秒）
 
 
 def collect_range(prefecture_jp: str, genre_jp: str, start_page: int, end_page: int, status_placeholder, progress_bar):
@@ -48,7 +48,14 @@ def render_table_and_download(df: pd.DataFrame, label_prefix: str):
             <script>
               (function(){{
                 setTimeout(function(){{
-                  try {{ window.location.reload(true); }} catch(e) {{ window.location.reload(); }}
+                  try {{
+                    // ブラウザの完全リロードに近い挙動（キャッシュバスター付き）
+                    var u = new URL(window.location.href);
+                    u.searchParams.set('_rnd', Date.now().toString());
+                    window.location.replace(u.toString());
+                  }} catch(e) {{
+                    try {{ window.location.reload(true); }} catch(_) {{ window.location.reload(); }}
+                  }}
                 }}, {RELOAD_DELAY_MS});
               }})();
             </script>
