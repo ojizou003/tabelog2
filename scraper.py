@@ -54,6 +54,7 @@ def get_page_content(url: str) -> BeautifulSoup | None:
 def extract_store_urls(soup: BeautifulSoup) -> list[str]:
     """
     リストページから個別の店舗ページのURLを抽出する
+    検索結果リスト領域（#js-RstListWrap）内のみを対象にする。
 
     Args:
         soup: リストページのBeautifulSoupオブジェクト
@@ -61,9 +62,15 @@ def extract_store_urls(soup: BeautifulSoup) -> list[str]:
     Returns:
         店舗ページのURLのリスト
     """
-    store_urls = []
-    for link in soup.select('a.list-rst__rst-name-target'):
-            store_urls.append(link['href'])
+    store_urls: list[str] = []
+    # リスト本体のラッパー内に限定して抽出（ランキング/広告等を除外）
+    wrapper = soup.select_one('#js-RstListWrap') or soup.select_one('#js-rstlst-wrap')
+    if not wrapper:
+        return store_urls
+    for link in wrapper.select('a.list-rst__rst-name-target'):
+        href = link.get('href')
+        if href:
+            store_urls.append(href)
     return store_urls
 
 from typing import Optional
@@ -150,7 +157,7 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
         return
 
 
-    for page_num in range(1, min(max_pages, 60) + 1):
+    for page_num in range(1, min(max_pages, 60) + 1):  # NOTE: URLフィルタと住所検証で無関係店舗を除外
         search_url = build_search_url(prefecture_roman, genre_roman, page_num)
         logging.info(f"Scraping page {page_num}: {search_url}")
 
@@ -160,6 +167,8 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
             continue
 
         store_urls = list(dict.fromkeys(extract_store_urls(list_soup)))  # 重複排除
+        # 都道府県ルート配下のみ許可
+        store_urls = [u for u in store_urls if u.startswith(f"{BASE_URL}{prefecture_roman}/")] 
         if not store_urls:
             logging.info(f"No store URLs found on page {page_num}.")
             # ページが存在しない場合の対応 (例: 検索結果の最終ページ)
@@ -175,10 +184,15 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
                 logging.error(f"店舗ページの取得に失敗しました: {store_url}")
                 continue
             store_details = extract_store_details(store_soup)
-            if store_details:
-                yield store_details
-            else:
+            if not store_details:
                 logging.info(f"店舗ページの有効なデータが見つかりませんでした: {store_url}")
+                continue
+            # 住所に都道府県名を含むもののみ許可（無関係な候補を排除）
+            addr = (store_details.get('住所') or '').strip()
+            if prefecture_jp and (prefecture_jp not in addr):
+                logging.info(f"Filtering out store outside prefecture: {addr}")
+                continue
+            yield store_details
 
     # ジェネレーターなので return は不要
 
@@ -208,7 +222,7 @@ def scrape_tabelog_range(prefecture_jp: str, genre_jp: str, start_page: int, end
         logging.warning(f"Invalid page range: {start_page}..{end_page}")
         return
 
-    for page_num in range(start, end + 1):
+    for page_num in range(start, end + 1):  # NOTE: URLフィルタと住所検証で無関係店舗を除外
         search_url = build_search_url(prefecture_roman, genre_roman, page_num)
         logging.info(f"Scraping page {page_num}: {search_url}")
 
@@ -218,6 +232,8 @@ def scrape_tabelog_range(prefecture_jp: str, genre_jp: str, start_page: int, end
             continue
 
         store_urls = list(dict.fromkeys(extract_store_urls(list_soup)))  # 重複排除
+        # 選択した都道府県に属するURLのみ許可
+        store_urls = [u for u in store_urls if u.startswith(f"{BASE_URL}{prefecture_roman}/")] 
         if not store_urls:
             logging.info(f"No store URLs found on page {page_num}.")
             # ページが存在しない場合の対応 (例: 検索結果の最終ページ)
@@ -229,11 +245,19 @@ def scrape_tabelog_range(prefecture_jp: str, genre_jp: str, start_page: int, end
         for store_url in store_urls:
             logging.info(f"  Scraping store page: {store_url}")
             store_soup = get_page_content(store_url)
-            if store_soup:
-                store_details = extract_store_details(store_soup)
-                yield store_details
-            else:
+            if not store_soup:
                 logging.error(f"店舗ページの取得に失敗しました: {store_url}")
+                continue
+            store_details = extract_store_details(store_soup)
+            if not store_details:
+                logging.info(f"店舗ページの有効なデータが見つかりませんでした: {store_url}")
+                continue
+            # 住所に都道府県名を含むもののみ許可（無関係な候補を排除）
+            addr = (store_details.get('住所') or '').strip()
+            if prefecture_jp and (prefecture_jp not in addr):
+                logging.info(f"Filtering out store outside prefecture: {addr}")
+                continue
+            yield store_details
 
 if __name__ == '__main__':
     # テスト実行用のコードなど
