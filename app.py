@@ -47,12 +47,37 @@ def render_table_and_download(df: pd.DataFrame, label_prefix: str):
             f"""
             <script>
               (function(){{
+                if (window.__hardReloading) return; // 多重実行防止
+                window.__hardReloading = true;
                 setTimeout(function(){{
                   try {{
-                    // ブラウザの完全リロードに近い挙動（キャッシュバスター付き）
                     var u = new URL(window.location.href);
                     u.searchParams.set('_rnd', Date.now().toString());
-                    window.location.replace(u.toString());
+                    var url = u.toString();
+                    // 1) assign: 履歴を残す通常の遷移
+                    window.location.assign(url);
+                    // 2) href: 念のためのフォールバック
+                    setTimeout(function(){{ window.location.href = url; }}, 250);
+                    // 3) リンククリックでの遷移
+                    setTimeout(function(){{
+                      try {{
+                        var a = document.createElement('a');
+                        a.href = url;
+                        a.rel = 'noopener';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                      }} catch(_e) {{}}
+                    }}, 500);
+                    // 4) meta refresh フォールバック
+                    setTimeout(function(){{
+                      try {{
+                        var m = document.createElement('meta');
+                        m.httpEquiv = 'refresh';
+                        m.content = '0;url=' + url;
+                        document.head.appendChild(m);
+                      }} catch(_e) {{}}
+                    }}, 800);
                   }} catch(e) {{
                     try {{ window.location.reload(true); }} catch(_) {{ window.location.reload(); }}
                   }}
