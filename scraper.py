@@ -173,10 +173,8 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
         if not store_urls:
             logging.info(f"No store URLs found on page {page_num}.")
             # ページが存在しない場合の対応 (例: 検索結果の最終ページ)
-            if page_num > 1: # 2ページ目以降でURLが見つからない場合は終了と判断
-                 logging.info("Assuming end of search results.")
-                 break
-            continue
+            logging.info("Assuming end of search results.")
+            break
 
         for store_url in store_urls:
             logging.info(f"  Scraping store page: {store_url}")
@@ -237,11 +235,8 @@ def scrape_tabelog_range(prefecture_jp: str, genre_jp: str, start_page: int, end
         store_urls = [u for u in store_urls if u.startswith(f"{BASE_URL}{prefecture_roman}/")] 
         if not store_urls:
             logging.info(f"No store URLs found on page {page_num}.")
-            # ページが存在しない場合の対応 (例: 検索結果の最終ページ)
-            if page_num > start:
-                logging.info("Assuming end of search results.")
-                break
-            continue
+            logging.info("Assuming end of search results.")
+            break
 
         for store_url in store_urls:
             logging.info(f"  Scraping store page: {store_url}")
