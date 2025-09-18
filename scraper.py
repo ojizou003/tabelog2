@@ -66,7 +66,9 @@ def extract_store_urls(soup: BeautifulSoup) -> list[str]:
             store_urls.append(link['href'])
     return store_urls
 
-def extract_store_details(soup: BeautifulSoup) -> dict:
+from typing import Optional
+
+def extract_store_details(soup: BeautifulSoup) -> Optional[dict]:
     """
     店舗ページから詳細情報を抽出する
 
@@ -77,19 +79,19 @@ def extract_store_details(soup: BeautifulSoup) -> dict:
         抽出された詳細情報の辞書
     """
     details = {
-        '店名': ' - ',
-        'ジャンル': ' -',
-        '住所': ' -',
-        '電話番号': ' - ',
-        '予約・お問い合わせ': ' - ',
-        'ホームページ': ' - ',
-        '席数': ' - '
+        '店名': '',
+        'ジャンル': '',
+        '住所': '',
+        '電話番号': '',
+        '予約・お問い合わせ': '',
+        'ホームページ': '',
+        '席数': ''
     }
     
     table = soup.find(id='contents-rstdata')
-    if not table: # contents-rstdata がない場合のエラーハンドリング
-        logging.warning("contents-rstdata div not found.")
-        return details # 空の辞書またはデフォルト値を含む辞書を返す
+    if not table: # 必須テーブルがない場合は無効とする
+        logging.warning("contents-rstdata div not found. Skipping this store.")
+        return None
 
     ths = table.find_all('th')
     tds = table.find_all('td')
@@ -121,6 +123,10 @@ def extract_store_details(soup: BeautifulSoup) -> dict:
         else:
             pass # その他の項目はスキップ
             
+    # 最低限の必須チェック（店名が取得できない場合は無効）
+    if not details.get('店名') or details.get('店名').strip('- ').strip() == '':
+        logging.warning("Store name not found. Skipping this store.")
+        return None
     return details
 
 def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
@@ -153,7 +159,7 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
             logging.warning(f"Failed to get content for page {page_num}. Skipping.")
             continue
 
-        store_urls = extract_store_urls(list_soup)
+        store_urls = list(dict.fromkeys(extract_store_urls(list_soup)))  # 重複排除
         if not store_urls:
             logging.info(f"No store URLs found on page {page_num}.")
             # ページが存在しない場合の対応 (例: 検索結果の最終ページ)
@@ -165,11 +171,14 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
         for store_url in store_urls:
             logging.info(f"  Scraping store page: {store_url}")
             store_soup = get_page_content(store_url)
-            if store_soup:
-                store_details = extract_store_details(store_soup)
-                yield store_details # データをyieldする
-            else:
+            if not store_soup:
                 logging.error(f"店舗ページの取得に失敗しました: {store_url}")
+                continue
+            store_details = extract_store_details(store_soup)
+            if store_details:
+                yield store_details
+            else:
+                logging.info(f"店舗ページの有効なデータが見つかりませんでした: {store_url}")
 
     # ジェネレーターなので return は不要
 
@@ -208,7 +217,7 @@ def scrape_tabelog_range(prefecture_jp: str, genre_jp: str, start_page: int, end
             logging.warning(f"Failed to get content for page {page_num}. Skipping.")
             continue
 
-        store_urls = extract_store_urls(list_soup)
+        store_urls = list(dict.fromkeys(extract_store_urls(list_soup)))  # 重複排除
         if not store_urls:
             logging.info(f"No store URLs found on page {page_num}.")
             # ページが存在しない場合の対応 (例: 検索結果の最終ページ)
