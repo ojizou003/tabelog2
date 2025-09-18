@@ -9,6 +9,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # utils.py から都道府県変換マップをインポートする想定
 # from .utils import PREFECTURE_MAP # プロジェクト構成による
 from utils import convert_prefecture_to_roman, convert_genre_to_roman
+from urllib.parse import urljoin
 
 BASE_URL = "https://tabelog.com/"
 
@@ -65,12 +66,12 @@ def extract_store_urls(soup: BeautifulSoup) -> list[str]:
     store_urls: list[str] = []
     # リスト本体のラッパー内に限定して抽出（ランキング/広告等を除外）
     wrapper = soup.select_one('#js-RstListWrap') or soup.select_one('#js-rstlst-wrap')
-    if not wrapper:
-        return store_urls
-    for link in wrapper.select('a.list-rst__rst-name-target'):
+    links_scope = wrapper if wrapper else soup  # ラッパーが無い場合はページ全体から抽出
+    for link in links_scope.select('a.list-rst__rst-name-target'):
         href = link.get('href')
         if href:
-            store_urls.append(href)
+            abs_url = urljoin(BASE_URL, href)
+            store_urls.append(abs_url)
     return store_urls
 
 from typing import Optional
