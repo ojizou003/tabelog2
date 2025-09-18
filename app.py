@@ -155,6 +155,8 @@ end_page = st.sidebar.number_input(
     format="%d"
 )
 
+st.caption("データ取得前にブラウザを手動でリロードしてください。")
+
 # 現在の選択をクエリパラメータに反映（変更がある場合のみ）
 # クエリには英字コードを保存
 new_qp = {
@@ -178,7 +180,7 @@ if need_update:
 status_placeholder = st.empty()
 progress_bar = st.progress(0)
 
-if st.sidebar.button('スクレイピング開始'):
+if st.sidebar.button('データ取得'):
     # 入力検証
     if not prefecture_jp:
         st.sidebar.error('都道府県を選択してください。')
@@ -189,7 +191,7 @@ if st.sidebar.button('スクレイピング開始'):
     else:
         try:
             data = collect_range(prefecture_jp, genre_jp, int(start_page), int(end_page), status_placeholder, progress_bar)
-            status_placeholder.success('スクレイピングが完了しました。')
+            status_placeholder.success('データ取得が完了しました。')
             progress_bar.empty()
             if data:
                 df = pd.DataFrame(data)
@@ -197,7 +199,7 @@ if st.sidebar.button('スクレイピング開始'):
             else:
                 st.warning('指定された条件では店舗情報が見つかりませんでした。')
         except Exception as e:
-            status_placeholder.error(f"スクレイピング中にエラーが発生しました: {e}")
+            status_placeholder.error(f"データ取得中にエラーが発生しました: {e}")
             progress_bar.empty()
             # 念のためGC
             gc.collect()
