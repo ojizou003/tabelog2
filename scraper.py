@@ -47,6 +47,19 @@ def get_page_content(url: str) -> BeautifulSoup | None:
         response = requests.get(url)
         response.raise_for_status() # HTTPエラーが発生した場合に例外を発生させる
         soup = BeautifulSoup(response.content, 'html.parser')
+
+        # 「検索結果なし」ページを判定
+        # セレクタによる判定
+        no_result_element = soup.select_one('.result-cassette__title--no-result')
+        if no_result_element and "見つかりませんでした" in no_result_element.get_text():
+            logging.info(f"No results found on page (detected by element): {url}")
+            return None
+        
+        # ページ全体のテキストによる判定（フォールバック）
+        if "ご指定の条件に該当するお店は見つかりませんでした" in soup.get_text():
+            logging.info(f"No results found on page (detected by text): {url}")
+            return None
+            
         return soup
     except requests.exceptions.RequestException as e:
         logging.error(f"Error fetching {url}: {e}") # print から logging.error に変更
@@ -66,12 +79,8 @@ def extract_store_urls(soup: BeautifulSoup) -> list[str]:
     store_urls: list[str] = []
     # リスト本体のラッパー内に限定して抽出（ランキング/広告等を除外）
     wrapper = soup.select_one('#js-RstListWrap') or soup.select_one('#js-rstlst-wrap')
-
-    # ラッパー要素が見つからない場合は、検索結果が存在しないと判断し、空のリストを返す
-    if not wrapper:
-        return []
-
-    for link in wrapper.select('a.list-rst__rst-name-target'):
+    links_scope = wrapper if wrapper else soup  # ラッパーが無い場合はページ全体から抽出
+    for link in links_scope.select('a.list-rst__rst-name-target'):
         href = link.get('href')
         if href:
             abs_url = urljoin(BASE_URL, href)
@@ -168,8 +177,8 @@ def scrape_tabelog(prefecture_jp: str, genre_jp: str, max_pages: int = 60):
 
         list_soup = get_page_content(search_url)
         if not list_soup:
-            logging.warning(f"Failed to get content for page {page_num}. Skipping.")
-            continue
+            logging.info(f"Failed to get content or no results found for page {page_num}. Stopping.")
+            break
 
         store_urls = list(dict.fromkeys(extract_store_urls(list_soup)))  # 重複排除
         # 都道府県ルート配下のみ許可
@@ -231,8 +240,8 @@ def scrape_tabelog_range(prefecture_jp: str, genre_jp: str, start_page: int, end
 
         list_soup = get_page_content(search_url)
         if not list_soup:
-            logging.warning(f"Failed to get content for page {page_num}. Skipping.")
-            continue
+            logging.info(f"Failed to get content or no results found for page {page_num}. Stopping.")
+            break
 
         store_urls = list(dict.fromkeys(extract_store_urls(list_soup)))  # 重複排除
         # 選択した都道府県に属するURLのみ許可
