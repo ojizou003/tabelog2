@@ -57,7 +57,7 @@ genre_jp = st.sidebar.selectbox(
 )
 
 start_page = st.sidebar.number_input(
-    '開始ページ',
+    '開始ページ(1~60)',
     min_value=1,
     max_value=60,
     value=1,
@@ -66,18 +66,13 @@ start_page = st.sidebar.number_input(
 )
 
 end_page = st.sidebar.number_input(
-    '終了ページ',
+    '終了ページ(1~60)',
     min_value=1,
     max_value=60,
     value=1,
     step=1,
     format="%d"
 )
-
-st.sidebar.caption('一度に処理できるのは30ページ未満です。ページ範囲を分けて実行してください。')
-st.sidebar.caption('1ページ当たり20件の店舗情報が取得できます。')
-st.sidebar.caption('収集する項目は、店名、ジャンル、住所、電話番号、予約・お問い合わせ先、ホームページURL、席数です。')
-st.sidebar.caption('食べログに情報がない項目は空欄になります。')
 
 status_placeholder = st.empty()
 progress_bar = st.progress(0)
@@ -105,3 +100,8 @@ if st.sidebar.button('スクレイピング開始'):
             progress_bar.empty()
             # 念のためGC
             gc.collect()
+
+st.sidebar.caption('一度に処理できるのは30ページ未満です。ページ範囲を分けて実行してください。')
+st.sidebar.caption('1ページ当たり20件の店舗情報が取得できます。')
+st.sidebar.caption('収集する項目は、店名、ジャンル、住所、電話番号、予約・お問い合わせ先、ホームページURL、席数です。')
+st.sidebar.caption('食べログに情報がない項目は空欄になります。')
