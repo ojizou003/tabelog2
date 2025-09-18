@@ -155,7 +155,7 @@ end_page = st.sidebar.number_input(
     format="%d"
 )
 
-st.caption("データ取得前にブラウザを手動でリロードしてください。")
+st.sidebar.caption("※データ取得前にブラウザを手動でリロードしてください。")
 
 # 現在の選択をクエリパラメータに反映（変更がある場合のみ）
 # クエリには英字コードを保存
