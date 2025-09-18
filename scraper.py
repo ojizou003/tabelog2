@@ -66,8 +66,12 @@ def extract_store_urls(soup: BeautifulSoup) -> list[str]:
     store_urls: list[str] = []
     # リスト本体のラッパー内に限定して抽出（ランキング/広告等を除外）
     wrapper = soup.select_one('#js-RstListWrap') or soup.select_one('#js-rstlst-wrap')
-    links_scope = wrapper if wrapper else soup  # ラッパーが無い場合はページ全体から抽出
-    for link in links_scope.select('a.list-rst__rst-name-target'):
+
+    # ラッパー要素が見つからない場合は、検索結果が存在しないと判断し、空のリストを返す
+    if not wrapper:
+        return []
+
+    for link in wrapper.select('a.list-rst__rst-name-target'):
         href = link.get('href')
         if href:
             abs_url = urljoin(BASE_URL, href)
