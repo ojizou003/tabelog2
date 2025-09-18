@@ -1,10 +1,12 @@
 import gc
 import pandas as pd
 import streamlit as st
+from streamlit.components.v1 import html as components_html
 from utils import PREFECTURE_MAP, convert_prefecture_to_roman, GENRE_MAP, convert_genre_to_roman
 from scraper import scrape_tabelog_range
 
 DISPLAY_LIMIT = 1000  # 表示負荷軽減のための最大表示行数
+RELOAD_DELAY_MS = 1500  # ダウンロード後にリロードするまでの遅延（ミリ秒）
 
 
 def collect_range(prefecture_jp: str, genre_jp: str, start_page: int, end_page: int, status_placeholder, progress_bar):
@@ -39,13 +41,20 @@ def render_table_and_download(df: pd.DataFrame, label_prefix: str):
         key=f"download_{label_prefix}",
     )
     if clicked:
-        # ダウンロード開始後にアプリをリセットしてタイムアウト回避
-        try:
-            for k in list(st.session_state.keys()):
-                del st.session_state[k]
-        except Exception:
-            pass
-        st.rerun()
+        # ダウンロード開始後に完全なブラウザリロード（URLクエリは保持）
+        # Streamlitのランタイムリロードではなくwindow.location.reload(true)を使用
+        components_html(
+            f"""
+            <script>
+              (function(){{
+                setTimeout(function(){{
+                  try {{ window.location.reload(true); }} catch(e) {{ window.location.reload(); }}
+                }}, {RELOAD_DELAY_MS});
+              }})();
+            </script>
+            """,
+            height=0,
+        )
 
 
 # UI 本体
